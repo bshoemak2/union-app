@@ -4,9 +4,9 @@ from trail_db import get_user_email
 class PaymentHandler:
     def __init__(self, stripe_secret_key):
         stripe.api_key = stripe_secret_key
-        # Placeholder until Render URL is known
-        self.success_url = "https://example.com/success?session_id={CHECKOUT_SESSION_ID}"
-        self.cancel_url = "https://example.com/"
+        # Replace with your actual Render URL
+        self.success_url = "https://union-app.onrender.com/success?session_id={CHECKOUT_SESSION_ID}"
+        self.cancel_url = "https://union-app.onrender.com"
 
     def create_subscription(self, username, price_id="price_12345"):
         try:

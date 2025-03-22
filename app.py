@@ -1,13 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 import folium
-from trail_db import init_db, view_stories, submit_story, get_prize_pool, get_leaderboard, get_random_story_snippet, get_existing_users
+from trail_db import init_db, view_stories, submit_story, get_prize_pool, get_leaderboard, get_random_story_snippet, subscribe_user, get_existing_users
 from trail_security import validate_username, validate_title, validate_story
+from trail_payments import PaymentHandler
 import os
 import logging
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+
+stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
 @app.route('/')
 def home():
@@ -87,6 +90,21 @@ def login():
             quote = get_random_story_snippet() or "Kindness is the sunshine that brightens the world."
             return render_template('home.html', error=result, prize_pool=prize_pool, winners_share=winners_share, quote=quote)
     return redirect(url_for('home'))
+
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    if 'username' not in session:
+        return redirect(url_for('home'))
+    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1YourActualPriceIdHere")
+    if url:
+        return redirect(url)
+    return jsonify({"error": error}), 500
+
+@app.route('/success')
+def success():
+    if 'username' in session:
+        subscribe_user(session['username'])
+    return render_template('success.html')
 
 if __name__ == "__main__":
     init_db()

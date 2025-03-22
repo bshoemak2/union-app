@@ -12,5 +12,8 @@
         </form>
     {% else %}
         <p>Welcome, {{ session.username }}!</p>
+        <form method="POST" action="{{ url_for('subscribe') }}">
+            <button type="submit">Subscribe</button>
+        </form>
     {% endif %}
 {% endblock %}
