@@ -1,16 +1,15 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 import folium
-from trail_db import init_db, view_stories, submit_story, get_prize_pool, get_leaderboard, get_random_story_snippet, subscribe_user, get_existing_users
+from trail_db import init_db, view_stories, submit_story, cheer_story, view_archived_stories, pick_winner, get_prize_pool, get_leaderboard, get_random_story_snippet, subscribe_user, get_existing_users
 from trail_security import validate_username, validate_title, validate_story
 from trail_payments import PaymentHandler
 import os
 import logging
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")  # Set in Render env vars
+app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Stripe handler uses env var set in Render - your sk_test_51... key is in Render env vars
 stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
 @app.route('/')
@@ -43,6 +42,29 @@ def submit():
             return render_template('submit.html', error="Invalid input")
     return render_template('submit.html')
 
+@app.route('/cheer/<int:story_id>', methods=['POST'])
+def cheer(story_id):
+    if 'username' not in session:
+        return redirect(url_for('home'))
+    result = cheer_story(session['username'], story_id)
+    logging.info(f"{session['username']} cheered story #{story_id}")
+    return redirect(url_for('stories'))
+
+@app.route('/archive')
+def archive():
+    archived_stories = view_archived_stories()
+    return render_template('archive.html', archived_stories=archived_stories)
+
+@app.route('/winner')
+def winner():
+    winner_info = pick_winner()
+    return render_template('winner.html', winner_info=winner_info)
+
+@app.route('/leaderboard')
+def leaderboard():
+    leaders = get_leaderboard()
+    return render_template('leaderboard.html', leaders=leaders)
+
 @app.route('/map')
 def map():
     m = folium.Map(location=[20, 0], zoom_start=2, tiles="OpenStreetMap")
@@ -54,7 +76,7 @@ def map():
             coords = {
                 "usa": (37.0902, -95.7129), "canada": (56.1304, -106.3468), "uk": (55.3781, -3.4360),
                 "france": (46.6034, 1.8883), "brazil": (-14.2350, -51.9253), "australia": (-25.2744, 133.7751),
-                "miami lakes, fl": (25.9087, -80.3087)  # Added for your story
+                "miami lakes, fl": (25.9087, -80.3087)
             }.get(loc_key, (random.uniform(-90, 90), random.uniform(-180, 180)))
             folium.Marker(coords, popup=f"{title} by {username or 'Anonymous'}").add_to(m)
     map_html = m._repr_html_()
@@ -101,7 +123,7 @@ def login():
 def subscribe():
     if 'username' not in session:
         return redirect(url_for('home'))
-    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")  # Your Price ID
+    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")
     if url:
         return redirect(url)
     return jsonify({"error": error}), 500

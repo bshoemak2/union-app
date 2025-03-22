@@ -6,6 +6,9 @@
             <h3>{{ story[1] }} by {{ story[4] or 'Anonymous' }}</h3>
             <p>{{ story[2] }}</p>
             <p>Cheers: {{ story[3] }} | Location: {{ story[7] or 'Unknown' }}</p>
+            <form method="POST" action="{{ url_for('cheer', story_id=story[0]) }}">
+                <button type="submit">Cheer</button>
+            </form>
         </div>
     {% endfor %}
 {% endblock %}

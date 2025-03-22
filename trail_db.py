@@ -10,7 +10,7 @@ MAX_STORY_WORDS = 20000
 ADMIN_USERNAME = "admin"
 
 def init_db():
-    db_path = "/opt/render/project/src/union_app.db"  # Render writable path
+    db_path = "/opt/render/project/src/union_app.db"
     with sqlite3.connect(db_path) as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS users 
@@ -27,8 +27,32 @@ def init_db():
                       cheers INTEGER, month TEXT, image_path TEXT, archived_at TEXT, location TEXT)''')
         conn.commit()
 
+def register_user(username, email, avatar_path=None):
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        if not re.match(r"^[a-zA-Z0-9_]+$", username):
+            return "Username must be alphanumeric / Nombre de usuario debe ser alfanumérico"
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return "Invalid email format / Formato de correo inválido"
+        try:
+            c.execute("INSERT INTO users (username, subscribed, avatar_path, email) VALUES (?, 0, ?, ?)", 
+                      (username, avatar_path, email))
+            conn.commit()
+            return f"Welcome, {username}! / ¡Bienvenido, {username}!"
+        except sqlite3.IntegrityError:
+            return "Username or email already taken / Nombre de usuario o correo ya tomados"
+
+def subscribe_user(username):
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("UPDATE users SET subscribed = 1 WHERE username = ?", (username,))
+        conn.commit()
+        return f"{username}, you're now subscribed / {username}, ahora estás suscrito"
+
 def submit_story(username, title, story, image_path=None, story_id=None, draft=False, location=None):
-    db_path = "/opt/render/project/src/union_app.db"  # Render writable path
+    db_path = "/opt/render/project/src/union_app.db"
     with sqlite3.connect(db_path) as conn:
         c = conn.cursor()
         c.execute("SELECT id, subscribed FROM users WHERE username = ?", (username,))
@@ -56,4 +80,93 @@ def submit_story(username, title, story, image_path=None, story_id=None, draft=F
                           (user[0], title, story, datetime.now().isoformat(), month, image_path, 1 if draft else 0, location))
             conn.commit()
             return "Draft saved successfully / Borrador guardado con éxito" if draft else "Story submitted successfully / Historia enviada con éxito"
-        return "You need to subscribe first / Necesitas suscribirte primero
+        return "You need to subscribe first / Necesitas suscribirte primero"  # Fixed syntax error
+
+def cheer_story(username, story_id):
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("UPDATE stories SET cheers = cheers + 1 WHERE id = ?", (story_id,))
+        conn.commit()
+        return f"Cheered story #{story_id} / Aplaudida historia #{story_id}"
+
+def view_stories():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT s.id, s.title, s.story, s.cheers, u.username, s.user_id, s.image_path, s.location FROM stories s LEFT JOIN users u ON s.user_id = u.id WHERE s.draft = 0 ORDER BY s.id DESC")
+        return c.fetchall()
+
+def view_archived_stories():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT a.id, a.title, a.story, a.cheers, a.month, a.image_path, u.username, a.location FROM archived_stories a JOIN users u ON a.user_id = u.id ORDER BY a.archived_at DESC")
+        return c.fetchall()
+
+def pick_winner():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        month = (datetime.now() - timedelta(days=30)).strftime("%Y-%m")
+        c.execute("SELECT s.id, s.title, s.story, s.cheers, s.user_id, s.image_path, u.username, s.location FROM stories s JOIN users u ON s.user_id = u.id WHERE s.month = ? AND s.draft = 0 ORDER BY s.cheers DESC LIMIT 3", (month,))
+        winners = c.fetchall()
+        if winners:
+            prize_pool = get_prize_pool()
+            total_prize = prize_pool * (2/3)
+            payouts = [total_prize * 0.5, total_prize * 0.3, total_prize * 0.2]
+            result = []
+            for i, (story_id, title, story, cheers, user_id, image_path, username, location) in enumerate(winners):
+                c.execute("SELECT COUNT(*) FROM archived_stories WHERE id = ? AND month = ?", (story_id, month))
+                if c.fetchone()[0] == 0:
+                    c.execute("INSERT INTO archived_stories (id, user_id, title, story, cheers, month, image_path, archived_at, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                              (story_id, user_id, title, story, cheers, month, image_path, datetime.now().isoformat(), location))
+                result.append(f"#{i+1}: {username} with '{title}' ({cheers} cheers) - ${payouts[i]:.2f} / #{i+1}: {username} con '{title}' ({cheers} aplausos) - ${payouts[i]:.2f}")
+            conn.commit()
+            return "\n".join(result)
+        return "No stories last month / No hay historias del último mes"
+
+def get_prize_pool():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM users WHERE subscribed = 1")
+        sub_count = c.fetchone()[0]
+        return sub_count * 3
+
+def get_existing_users():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT username FROM users")
+        return [row[0] for row in c.fetchall()]
+
+def get_user_email(username):
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT email FROM users WHERE username = ?", (username,))
+        result = c.fetchone()
+        return result[0] if result else None
+
+def get_leaderboard(limit=10):
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT u.username, SUM(s.cheers) as total_cheers FROM stories s JOIN users u ON s.user_id = u.id WHERE s.draft = 0 GROUP BY u.id, u.username ORDER BY total_cheers DESC LIMIT ?", (limit,))
+        return c.fetchall()
+
+def get_random_story_snippet():
+    db_path = "/opt/render/project/src/union_app.db"
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        c.execute("SELECT story FROM stories WHERE draft = 0 ORDER BY RANDOM() LIMIT 1")
+        result = c.fetchone()
+        if result:
+            story = result[0]
+            words = story.split()
+            if len(words) > 10:
+                start = random.randint(0, len(words) - 10)
+                return " ".join(words[start:start + 10])
+            return story
+        return None
