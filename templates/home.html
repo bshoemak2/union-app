@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    <p>{{ quote }}</p>
+    <p>Prize Pool: ${{ prize_pool }} (2/3 to Top 3: ${{ winners_share }})</p>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    {% if not session.username %}
+        <form method="POST" action="{{ url_for('login') }}">
+            <label>Username: <input type="text" name="username"></label>
+            <button type="submit">Login/Register</button>
+        </form>
+    {% else %}
+        <p>Welcome, {{ session.username }}!</p>
+    {% endif %}
+{% endblock %}

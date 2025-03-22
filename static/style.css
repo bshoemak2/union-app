@@ -1,0 +1,5 @@
+body { font-family: 'Courier New', monospace; background-color: #D2B48C; color: #4A2F1A; }
+header { text-align: center; }
+nav { text-align: center; margin: 10px 0; }
+nav a { margin: 0 10px; color: #4A2F1A; }
+h1, h2, h3 { color: #8B4513; }

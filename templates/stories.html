@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Stories</h2>
+    {% for story in stories %}
+        <div>
+            <h3>{{ story[1] }} by {{ story[4] or 'Anonymous' }}</h3>
+            <p>{{ story[2] }}</p>
+            <p>Cheers: {{ story[3] }} | Location: {{ story[7] or 'Unknown' }}</p>
+        </div>
+    {% endfor %}
+{% endblock %}

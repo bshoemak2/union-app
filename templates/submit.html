@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Submit a Story</h2>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="POST">
+        <label>Title: <input type="text" name="title"></label><br>
+        <label>Story: <textarea name="story"></textarea></label><br>
+        <label>Location (optional): <input type="text" name="location"></label><br>
+        <button type="submit">Submit</button>
+    </form>
+{% endblock %}
