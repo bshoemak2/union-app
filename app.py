@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")  # Set in Render env vars
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Stripe handler uses env var set in Render - replace placeholder with your key in Render env vars
+# Stripe handler uses env var set in Render - your sk_test_51... key is in Render env vars
 stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
 @app.route('/')
@@ -53,7 +53,8 @@ def map():
             loc_key = location.lower().strip()
             coords = {
                 "usa": (37.0902, -95.7129), "canada": (56.1304, -106.3468), "uk": (55.3781, -3.4360),
-                "france": (46.6034, 1.8883), "brazil": (-14.2350, -51.9253), "australia": (-25.2744, 133.7751)
+                "france": (46.6034, 1.8883), "brazil": (-14.2350, -51.9253), "australia": (-25.2744, 133.7751),
+                "miami lakes, fl": (25.9087, -80.3087)  # Added for your story
             }.get(loc_key, (random.uniform(-90, 90), random.uniform(-180, 180)))
             folium.Marker(coords, popup=f"{title} by {username or 'Anonymous'}").add_to(m)
     map_html = m._repr_html_()
@@ -100,8 +101,7 @@ def login():
 def subscribe():
     if 'username' not in session:
         return redirect(url_for('home'))
-    # Replace with your actual Price ID from Stripe
-    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")
+    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")  # Your Price ID
     if url:
         return redirect(url)
     return jsonify({"error": error}), 500
@@ -111,6 +111,12 @@ def success():
     if 'username' in session:
         subscribe_user(session['username'])
     return render_template('success.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    logging.info("User logged out")
+    return redirect(url_for('home'))
 
 if __name__ == "__main__":
     init_db()
