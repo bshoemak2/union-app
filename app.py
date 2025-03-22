@@ -34,9 +34,13 @@ def submit():
         location = request.form.get('location', '')
         logging.debug(f"Submit attempt: title='{title}', story='{story[:50]}...', location='{location}'")
         if validate_title(title) and validate_story(story):
-            submit_story(session['username'], title, story, location=location)
-            logging.info(f"Story submitted by {session['username']}: {title}")
-            return redirect(url_for('stories'))
+            result = submit_story(session['username'], title, story, location=location)
+            if "successfully" in result:
+                logging.info(f"Story submitted by {session['username']}: {title}")
+                return redirect(url_for('stories'))
+            else:
+                logging.error(f"Submit failed: {result}")
+                return render_template('submit.html', error=result)
         else:
             logging.error(f"Validation failed: title_valid={validate_title(title)}, story_valid={validate_story(story)}")
             return render_template('submit.html', error="Invalid input")
