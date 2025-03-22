@@ -95,7 +95,7 @@ def login():
 def subscribe():
     if 'username' not in session:
         return redirect(url_for('home'))
-    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1YourActualPriceIdHere")
+    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")
     if url:
         return redirect(url)
     return jsonify({"error": error}), 500
