@@ -3,3 +3,4 @@ folium
 pillow
 pygame
 gunicorn
+stripe
