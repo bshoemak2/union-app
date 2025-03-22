@@ -33,6 +33,35 @@ def init_db():
     except sqlite3.Error as e:
         logging.error(f"Database init failed: {e}")
 
+def register_user(username, email, avatar_path=None):
+    db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
+    with sqlite3.connect(db_path) as conn:
+        c = conn.cursor()
+        if not re.match(r"^[a-zA-Z0-9_]+$", username):
+            return "Username must be alphanumeric / Nombre de usuario debe ser alfanumérico"
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return "Invalid email format / Formato de correo inválido"
+        try:
+            c.execute("INSERT INTO users (username, subscribed, avatar_path, email) VALUES (?, 0, ?, ?)", 
+                      (username, avatar_path, email))
+            conn.commit()
+            return f"Welcome, {username}! / ¡Bienvenido, {username}!"
+        except sqlite3.IntegrityError:
+            return "Username or email already taken / Nombre de usuario o correo ya tomados"
+
+def subscribe_user(username):
+    db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
+    try:
+        with sqlite3.connect(db_path) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET subscribed = 1 WHERE username = ?", (username,))
+            conn.commit()
+            logging.info(f"User {username} subscribed")
+            return f"{username}, you're now subscribed / {username}, ahora estás suscrito"
+    except sqlite3.Error as e:
+        logging.error(f"Subscribe user failed: {e}")
+        return "Database error / Error de base de datos"
+
 def submit_story(username, title, story, image_path=None, story_id=None, draft=False, location=None):
     db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
     try:
