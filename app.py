@@ -7,9 +7,10 @@ import os
 import logging
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")
+app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")  # Set in Render env vars
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# Stripe handler uses env var set in Render - replace placeholder with your key in Render env vars
 stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
 @app.route('/')
@@ -32,10 +33,14 @@ def submit():
         title = request.form['title']
         story = request.form['story']
         location = request.form.get('location', '')
+        logging.debug(f"Submit attempt: title='{title}', story='{story[:50]}...', location='{location}'")
         if validate_title(title) and validate_story(story):
             submit_story(session['username'], title, story, location=location)
+            logging.info(f"Story submitted by {session['username']}: {title}")
             return redirect(url_for('stories'))
-        return render_template('submit.html', error="Invalid input")
+        else:
+            logging.error(f"Validation failed: title_valid={validate_title(title)}, story_valid={validate_story(story)}")
+            return render_template('submit.html', error="Invalid input")
     return render_template('submit.html')
 
 @app.route('/map')
@@ -95,7 +100,8 @@ def login():
 def subscribe():
     if 'username' not in session:
         return redirect(url_for('home'))
-    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1R5aVbP5TKnthUKZOwtyFyPt")
+    # Replace with your actual Price ID from Stripe
+    url, error = stripe_handler.create_subscription(session['username'], price_id="price_1YourActualPriceIdHere"")
     if url:
         return redirect(url)
     return jsonify({"error": error}), 500
