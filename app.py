@@ -12,6 +12,11 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 
 stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
+# Force database initialization at startup
+logging.info("Starting app - initializing database")
+init_db()
+logging.info("Database initialization completed")
+
 @app.route('/')
 def home():
     prize_pool = get_prize_pool()
@@ -145,5 +150,4 @@ def logout():
     return redirect(url_for('home'))
 
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)

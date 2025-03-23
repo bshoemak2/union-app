@@ -12,7 +12,7 @@ ADMIN_USERNAME = "admin"
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def init_db():
-    db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")  # Use /tmp for Render
+    db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
     logging.info(f"Attempting to initialize database at {db_path}")
     try:
         with sqlite3.connect(db_path) as conn:
@@ -30,7 +30,11 @@ def init_db():
                          (id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT, story TEXT, 
                           cheers INTEGER, month TEXT, image_path TEXT, archived_at TEXT, location TEXT)''')
             conn.commit()
-            logging.info(f"Database initialized at {db_path}")
+            logging.info(f"Database initialized successfully at {db_path}")
+            # Verify tables exist
+            c.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = c.fetchall()
+            logging.info(f"Tables in database: {tables}")
     except sqlite3.Error as e:
         logging.error(f"Database init failed: {e}")
 
