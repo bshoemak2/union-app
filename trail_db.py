@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 
 def init_db():
     db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")  # Use /tmp for Render
+    logging.info(f"Attempting to initialize database at {db_path}")
     try:
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
@@ -35,19 +36,24 @@ def init_db():
 
 def register_user(username, email, avatar_path=None):
     db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
-    with sqlite3.connect(db_path) as conn:
-        c = conn.cursor()
-        if not re.match(r"^[a-zA-Z0-9_]+$", username):
-            return "Username must be alphanumeric / Nombre de usuario debe ser alfanumérico"
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return "Invalid email format / Formato de correo inválido"
-        try:
-            c.execute("INSERT INTO users (username, subscribed, avatar_path, email) VALUES (?, 0, ?, ?)", 
-                      (username, avatar_path, email))
-            conn.commit()
-            return f"Welcome, {username}! / ¡Bienvenido, {username}!"
-        except sqlite3.IntegrityError:
-            return "Username or email already taken / Nombre de usuario o correo ya tomados"
+    try:
+        with sqlite3.connect(db_path) as conn:
+            c = conn.cursor()
+            if not re.match(r"^[a-zA-Z0-9_]+$", username):
+                return "Username must be alphanumeric / Nombre de usuario debe ser alfanumérico"
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                return "Invalid email format / Formato de correo inválido"
+            try:
+                c.execute("INSERT INTO users (username, subscribed, avatar_path, email) VALUES (?, 0, ?, ?)", 
+                          (username, avatar_path, email))
+                conn.commit()
+                logging.info(f"User {username} registered")
+                return f"Welcome, {username}! / ¡Bienvenido, {username}!"
+            except sqlite3.IntegrityError:
+                return "Username or email already taken / Nombre de usuario o correo ya tomados"
+    except sqlite3.Error as e:
+        logging.error(f"Register user failed: {e}")
+        return "Database error / Error de base de datos"
 
 def subscribe_user(username):
     db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
@@ -91,7 +97,7 @@ def submit_story(username, title, story, image_path=None, story_id=None, draft=F
                     c.execute("INSERT INTO stories (user_id, title, story, cheers, submitted_at, month, image_path, draft, location) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)", 
                               (user[0], title, story, datetime.now().isoformat(), month, image_path, 1 if draft else 0, location))
                 conn.commit()
-                logging.info(f"Story saved to {db_path}")
+                logging.info(f"Story saved to {db_path}: {title}")
                 return "Draft saved successfully / Borrador guardado con éxito" if draft else "Story submitted successfully / Historia enviada con éxito"
             return "You need to subscribe first / Necesitas suscribirte primero"
     except sqlite3.Error as e:
@@ -104,7 +110,9 @@ def view_stories():
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
             c.execute("SELECT s.id, s.title, s.story, s.cheers, u.username, s.user_id, s.image_path, s.location FROM stories s LEFT JOIN users u ON s.user_id = u.id WHERE s.draft = 0 ORDER BY s.id DESC")
-            return c.fetchall()
+            stories = c.fetchall()
+            logging.info(f"Fetched {len(stories)} stories from {db_path}")
+            return stories
     except sqlite3.Error as e:
         logging.error(f"View stories failed: {e}")
         return []
@@ -116,6 +124,7 @@ def cheer_story(username, story_id):
             c = conn.cursor()
             c.execute("UPDATE stories SET cheers = cheers + 1 WHERE id = ?", (story_id,))
             conn.commit()
+            logging.info(f"Story #{story_id} cheered by {username}")
             return f"Cheered story #{story_id} / Aplaudida historia #{story_id}"
     except sqlite3.Error as e:
         logging.error(f"Cheer story failed: {e}")
@@ -127,7 +136,9 @@ def view_archived_stories():
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
             c.execute("SELECT a.id, a.title, a.story, a.cheers, a.month, a.image_path, u.username, a.location FROM archived_stories a JOIN users u ON a.user_id = u.id ORDER BY a.archived_at DESC")
-            return c.fetchall()
+            archived = c.fetchall()
+            logging.info(f"Fetched {len(archived)} archived stories from {db_path}")
+            return archived
     except sqlite3.Error as e:
         logging.error(f"View archived stories failed: {e}")
         return []
@@ -152,6 +163,7 @@ def pick_winner():
                                   (story_id, user_id, title, story, cheers, month, image_path, datetime.now().isoformat(), location))
                     result.append(f"#{i+1}: {username} with '{title}' ({cheers} cheers) - ${payouts[i]:.2f} / #{i+1}: {username} con '{title}' ({cheers} aplausos) - ${payouts[i]:.2f}")
                 conn.commit()
+                logging.info(f"Winners picked for {month}: {len(winners)}")
                 return "\n".join(result)
             return "No stories last month / No hay historias del último mes"
     except sqlite3.Error as e:
@@ -165,6 +177,7 @@ def get_prize_pool():
             c = conn.cursor()
             c.execute("SELECT COUNT(*) FROM users WHERE subscribed = 1")
             sub_count = c.fetchone()[0]
+            logging.info(f"Prize pool calculated: {sub_count * 3}")
             return sub_count * 3
     except sqlite3.Error as e:
         logging.error(f"Get prize pool failed: {e}")
@@ -176,7 +189,9 @@ def get_existing_users():
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
             c.execute("SELECT username FROM users")
-            return [row[0] for row in c.fetchall()]
+            users = [row[0] for row in c.fetchall()]
+            logging.info(f"Fetched {len(users)} existing users")
+            return users
     except sqlite3.Error as e:
         logging.error(f"Get existing users failed: {e}")
         return []
@@ -188,6 +203,7 @@ def get_user_email(username):
             c = conn.cursor()
             c.execute("SELECT email FROM users WHERE username = ?", (username,))
             result = c.fetchone()
+            logging.info(f"Email fetched for {username}: {result[0] if result else None}")
             return result[0] if result else None
     except sqlite3.Error as e:
         logging.error(f"Get user email failed: {e}")
@@ -199,7 +215,9 @@ def get_leaderboard(limit=10):
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
             c.execute("SELECT u.username, SUM(s.cheers) as total_cheers FROM stories s JOIN users u ON s.user_id = u.id WHERE s.draft = 0 GROUP BY u.id, u.username ORDER BY total_cheers DESC LIMIT ?", (limit,))
-            return c.fetchall()
+            leaders = c.fetchall()
+            logging.info(f"Fetched leaderboard with {len(leaders)} entries")
+            return leaders
     except sqlite3.Error as e:
         logging.error(f"Get leaderboard failed: {e}")
         return []
@@ -216,8 +234,12 @@ def get_random_story_snippet():
                 words = story.split()
                 if len(words) > 10:
                     start = random.randint(0, len(words) - 10)
-                    return " ".join(words[start:start + 10])
+                    snippet = " ".join(words[start:start + 10])
+                    logging.info(f"Random snippet: {snippet}")
+                    return snippet
+                logging.info(f"Random snippet: {story}")
                 return story
+            logging.info("No stories for snippet")
             return None
     except sqlite3.Error as e:
         logging.error(f"Get random story snippet failed: {e}")
