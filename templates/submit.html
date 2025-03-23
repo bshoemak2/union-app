@@ -4,10 +4,13 @@
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
-    <form method="POST">
-        <label>Title: <input type="text" name="title"></label><br>
-        <label>Story: <textarea name="story"></textarea></label><br>
-        <label>Location (optional): <input type="text" name="location"></label><br>
-        <button type="submit">Submit</button>
+    <form method="POST" style="width: 600px; margin: 20px auto;">
+        <label style="font-size: 16px;">Title:</label><br>
+        <input type="text" name="title" style="width: 100%; font-size: 16px; padding: 5px; margin-bottom: 10px;"><br>
+        <label style="font-size: 16px;">Story:</label><br>
+        <textarea name="story" rows="15" cols="80" style="width: 100%; font-size: 16px; padding: 5px; margin-bottom: 10px;"></textarea><br>
+        <label style="font-size: 16px;">Location (optional):</label><br>
+        <input type="text" name="location" style="width: 100%; font-size: 16px; padding: 5px; margin-bottom: 10px;"><br>
+        <button type="submit" style="font-size: 16px; padding: 10px 20px;">Submit</button>
     </form>
 {% endblock %}

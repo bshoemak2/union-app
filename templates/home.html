@@ -12,9 +12,11 @@
         </form>
     {% else %}
         <p>Welcome, {{ session.username }}!</p>
-        <form method="POST" action="{{ url_for('subscribe') }}">
-            <button type="submit">Subscribe</button>
-        </form>
+        {% if not subscribed %}
+            <form method="POST" action="{{ url_for('subscribe') }}">
+                <button type="submit">Subscribe</button>
+            </form>
+        {% endif %}
         <form action="{{ url_for('logout') }}">
             <button type="submit">Log out</button>
         </form>

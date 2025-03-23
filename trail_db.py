@@ -31,7 +31,6 @@ def init_db():
                           cheers INTEGER, month TEXT, image_path TEXT, archived_at TEXT, location TEXT)''')
             conn.commit()
             logging.info(f"Database initialized successfully at {db_path}")
-            # Verify tables exist
             c.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = c.fetchall()
             logging.info(f"Tables in database: {tables}")
@@ -71,6 +70,20 @@ def subscribe_user(username):
     except sqlite3.Error as e:
         logging.error(f"Subscribe user failed: {e}")
         return "Database error / Error de base de datos"
+
+def get_user_subscription(username):
+    db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")
+    try:
+        with sqlite3.connect(db_path) as conn:
+            c = conn.cursor()
+            c.execute("SELECT subscribed FROM users WHERE username = ?", (username,))
+            result = c.fetchone()
+            subscribed = result[0] if result else False
+            logging.info(f"Subscription status for {username}: {subscribed}")
+            return subscribed
+    except sqlite3.Error as e:
+        logging.error(f"Get user subscription failed: {e}")
+        return False
 
 def submit_story(username, title, story, image_path=None, story_id=None, draft=False, location=None):
     db_path = os.environ.get("DB_PATH", "/tmp/union_app.db")

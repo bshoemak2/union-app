@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 import folium
-from trail_db import init_db, view_stories, submit_story, cheer_story, view_archived_stories, pick_winner, get_prize_pool, get_leaderboard, get_random_story_snippet, subscribe_user, get_existing_users
+from trail_db import init_db, view_stories, submit_story, cheer_story, view_archived_stories, pick_winner, get_prize_pool, get_leaderboard, get_random_story_snippet, subscribe_user, get_existing_users, get_user_subscription
 from trail_security import validate_username, validate_title, validate_story
 from trail_payments import PaymentHandler
 import os
@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %
 
 stripe_handler = PaymentHandler(os.environ.get("STRIPE_SECRET_KEY"))
 
-# Force database initialization at startup
+# Initialize DB at startup
 logging.info("Starting app - initializing database")
 init_db()
 logging.info("Database initialization completed")
@@ -22,7 +22,8 @@ def home():
     prize_pool = get_prize_pool()
     winners_share = prize_pool * (2/3)
     quote = get_random_story_snippet() or "Kindness is the sunshine that brightens the world."
-    return render_template('home.html', prize_pool=prize_pool, winners_share=winners_share, quote=quote)
+    subscribed = get_user_subscription(session.get('username')) if 'username' in session else False
+    return render_template('home.html', prize_pool=prize_pool, winners_share=winners_share, quote=quote, subscribed=subscribed)
 
 @app.route('/stories')
 def stories():
